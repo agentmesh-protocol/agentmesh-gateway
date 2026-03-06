@@ -29,68 +29,66 @@ export default {
       }
 
       if (url.pathname === "/v1/registry" && request.method === "POST") {
-        let body: Record<string, unknown>;
-        try {
-          body = await request.json() as Record<string, unknown>;
-        } catch (e) {
-          return json({ error: "JSON parse failed", detail: String(e) }, 400);
-        }
-
+        const body = await request.json() as Record<string, unknown>;
         if (!body.uri || !body.name || !body.capabilities) {
-          return json({ error: "Missing: uri, name, capabilities", got: Object.keys(body) }, 400);
+          return json({ error: "Missing: uri, name, capabilities" }, 400);
         }
-
-        try {
-          const record = {
-            uri: body.uri,
-            name: body.name,
-            capabilities: body.capabilities,
-            trust_score: 0.0,
-            registered_at: Math.floor(Date.now() / 1000)
-          };
-          await env.AGENT_REGISTRY.put(
-            String(body.uri),
-            JSON.stringify(record),
-            { expirationTtl: 3600 }
-          );
-          return json({ success: true, registered: body.uri }, 201);
-        } catch (e) {
-          return json({ error: "KV write failed", detail: String(e) }, 500);
-        }
+        const record = {
+          uri: body.uri,
+          name: body.name,
+          capabilities: body.capabilities,
+          trust_score: 0.0,
+          registered_at: Math.floor(Date.now() / 1000)
+        };
+        await env.AGENT_REGISTRY.put(
+          String(body.uri),
+          JSON.stringify(record),
+          { expirationTtl: 3600 }
+        );
+        return json({ success: true, registered: body.uri }, 201);
       }
 
       if (url.pathname === "/v1/registry" && request.method === "GET") {
-        try {
-          const capability = url.searchParams.get("capability");
-          const list = await env.AGENT_REGISTRY.list();
-          const agents = [];
-          for (const key of list.keys) {
-            const value = await env.AGENT_REGISTRY.get(key.name);
-            if (value) {
-              const agent = JSON.parse(value);
-              if (!capability || (agent.capabilities as string[]).includes(capability)) {
-                agents.push(agent);
-              }
+        const capability = url.searchParams.get("capability");
+        const list = await env.AGENT_REGISTRY.list();
+        const agents = [];
+        for (const key of list.keys) {
+          const value = await env.AGENT_REGISTRY.get(key.name);
+          if (value) {
+            const agent = JSON.parse(value);
+            if (!capability || (agent.capabilities as string[]).includes(capability)) {
+              agents.push(agent);
             }
           }
-          return json({ results: agents, total: agents.length });
-        } catch (e) {
-          return json({ error: "KV read failed", detail: String(e) }, 500);
         }
+        return json({ results: agents, total: agents.length });
+      }
+
+      if (url.pathname === "/v1/trust" && request.method === "POST") {
+        const body = await request.json() as Record<string, unknown>;
+        if (!body.uri || body.delta === undefined) {
+          return json({ error: "Missing: uri, delta" }, 400);
+        }
+        const value = await env.AGENT_REGISTRY.get(String(body.uri));
+        if (!value) {
+          return json({ error: "Agent not found" }, 404);
+        }
+        const agent = JSON.parse(value);
+        const delta = Number(body.delta);
+        agent.trust_score = Math.max(0.0, Math.min(1.0, agent.trust_score + delta));
+        await env.AGENT_REGISTRY.put(
+          String(body.uri),
+          JSON.stringify(agent),
+          { expirationTtl: 3600 }
+        );
+        return json({ success: true, uri: body.uri, trust_score: agent.trust_score });
       }
 
       if (url.pathname === "/v1/send" && request.method === "POST") {
-        let body: Record<string, unknown>;
-        try {
-          body = await request.json() as Record<string, unknown>;
-        } catch (e) {
-          return json({ error: "JSON parse failed", detail: String(e) }, 400);
-        }
-
+        const body = await request.json() as Record<string, unknown>;
         if (!body.from || !body.to || !body.body) {
           return json({ error: "Missing: from, to, body" }, 400);
         }
-
         const message = {
           agentmesh_version: "0.1",
           id: `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`,
