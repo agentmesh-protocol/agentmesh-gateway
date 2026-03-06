@@ -1,9 +1,22 @@
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 export default {
   async fetch(request: Request): Promise<Response> {
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: CORS_HEADERS });
+    }
+
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return Response.json({ status: "ok", version: "0.1.0" });
+      return Response.json(
+        { status: "ok", version: "0.1.0" },
+        { headers: CORS_HEADERS }
+      );
     }
 
     if (url.pathname === "/v1/send" && request.method === "POST") {
@@ -13,7 +26,7 @@ export default {
         if (!body.from || !body.to || !body.body) {
           return Response.json(
             { error: "Missing required fields: from, to, body" },
-            { status: 400 }
+            { status: 400, headers: CORS_HEADERS }
           );
         }
 
@@ -28,10 +41,16 @@ export default {
           signature: body.signature || null,
         };
 
-        return Response.json({ success: true, message }, { status: 201 });
+        return Response.json(
+          { success: true, message },
+          { status: 201, headers: CORS_HEADERS }
+        );
 
       } catch {
-        return Response.json({ error: "Invalid JSON" }, { status: 400 });
+        return Response.json(
+          { error: "Invalid JSON" },
+          { status: 400, headers: CORS_HEADERS }
+        );
       }
     }
 
@@ -42,17 +61,26 @@ export default {
         if (!body.uri || !body.name || !body.capabilities) {
           return Response.json(
             { error: "Missing required fields: uri, name, capabilities" },
-            { status: 400 }
+            { status: 400, headers: CORS_HEADERS }
           );
         }
 
-        return Response.json({ success: true, registered: body.uri }, { status: 201 });
+        return Response.json(
+          { success: true, registered: body.uri },
+          { status: 201, headers: CORS_HEADERS }
+        );
 
       } catch {
-        return Response.json({ error: "Invalid JSON" }, { status: 400 });
+        return Response.json(
+          { error: "Invalid JSON" },
+          { status: 400, headers: CORS_HEADERS }
+        );
       }
     }
 
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json(
+      { error: "Not found" },
+      { status: 404, headers: CORS_HEADERS }
+    );
   },
 };
