@@ -2,3 +2,7 @@ name = "agentmesh-gateway"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 workers_dev = true
+
+kv_namespaces = [
+  { binding = "AGENT_REGISTRY", id = "4c7bd50a30c64d6c8fa984acddf5fb8d" }
+]
